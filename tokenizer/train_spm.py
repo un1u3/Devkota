@@ -149,6 +149,7 @@ class NepaliTokenizer:
         for ids in ids_list:
             decoded = self.decode(ids, remove_special=remove_special)
             results.append(decoded)
+        return results
               
     
 
