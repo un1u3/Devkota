@@ -15,6 +15,7 @@ class Devkota(nn.Module):
     # lang model head (projectt to vocab)
 
 
+    # ig it needs some value
     def __init__(self, vocab_size, d_model,num_layers, num_heads,d_ff, max_seq_len, dropout, pad_idx):
         super().__init__()
         self.vocab_size = vocab_size
@@ -22,4 +23,11 @@ class Devkota(nn.Module):
         self.num_layers = num_layers
         self.max_seq_len = max_seq_len
         self.pad_idx = pad_idx
+
+        # positional encodingn 
+        # adds postion info to embedding 
+
+
+
+    
         
