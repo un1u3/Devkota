@@ -24,8 +24,27 @@ class Devkota(nn.Module):
         self.max_seq_len = max_seq_len
         self.pad_idx = pad_idx
 
-        # positional encodingn 
+        # token embedding layer 
         # adds postion info to embedding 
+        self.token_embedding = nn.Embedding(
+            num_embeddings = vocab_size,
+            embedding_dim = d_model,
+            pad_idx = pad_idx
+        )
+
+        # positional encoding 
+        # adds position informatoin to embedddings 
+        self.positional_encoding = PositionalEncoding(
+            d_model=d_model,
+
+            max_seq_len= max_seq_len,
+            dropout= dropout
+        )
+
+        # stack of transformer block 
+        self.transformer_blocks = nn.ModuleList([
+            TransformerBlock
+        ])
 
 
 
