@@ -82,19 +82,19 @@ class MultiHeadAttention(nn.Module):
         output = self.W_o(attn_output)
         return output
     
-    def create_casual_mask(seq_len, device):
-        # Create a casual (lower traingular) mask for autoreg gen
-        # ovi lower traingular matrix 
-        # this prevnets position from attending futrure pred 
-        mask = torch.tril(torch.ones(seq_len, seq_len, device=device))
-        mask = mask.unsqueeze(0).unsqueeze(0)
-        return mask 
+def create_casual_mask(seq_len, device):
+    # Create a casual (lower traingular) mask for autoreg gen
+    # ovi lower traingular matrix 
+    # this prevnets position from attending futrure pred 
+    mask = torch.tril(torch.ones(seq_len, seq_len, device=device))
+    mask = mask.unsqueeze(0).unsqueeze(0)
+    return mask 
     
 
-    def create_padding_mask(seq, pad_idx= 3):
-        mask = (seq != pad_idx).unsqueeze(1).unsqueeze(2)
+def create_padding_mask(seq, pad_idx= 3):
+    mask = (seq != pad_idx).unsqueeze(1).unsqueeze(2)
         
-        return mask
+    return mask
 
 
     
