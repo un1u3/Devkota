@@ -43,8 +43,122 @@ class Devkota(nn.Module):
 
         # stack of transformer block 
         self.transformer_blocks = nn.ModuleList([
-            TransformerBlock
+            TransformerBlock(
+                d_model=d_model,
+                num_heads= num_heads,
+                d_ff= d_ff,
+                dropout= dropout) for _ in range(num_layers)
         ])
+
+        # final layer normalization 
+        self.ln_f = nn.LayerNorm(d_model)
+
+        # langauge model head 
+        # projects hidden states to vocab logits 
+        self.lm_head.weight = self.token_embedding.weight 
+
+        # initialize weights 
+        self.appy(self._init_weights)
+
+        # special scaled initn f residual projections 
+        for name, p in self.named_parameters():
+            if name.endswith('W_o.weight') or name.endswith('linear2.weight'):
+                # scale by 1/sqrt*2*num_layers) for residual connections 
+                nn.init.normal_(p, mean=0.0, std=0.2 / (2 8 num_layers)**0.5)
+
+    def _init_weights(self, module):
+        # initilizing weights using kaiming initialization 
+        if isinstance(module, nn.Linear):
+            nn.init.normal_(module.weight, mean=0.0, std=0.02)
+            if module.bias is not None:
+                nn.init.zeros_(module.bias)
+
+        elif isinstance(module, nn.Embedding):
+            nn.init.normal_(module.weight, mean=0.0, std=0.02)
+            if module.padding_idx is not None:
+                # zero out padding embedding
+                module.weight.data[module.padding_idx].zero_()
+
+        elif isinstance(module, nn.LayerNorm):
+            nn.init.zeros_(module.bias)
+            nn.init.ones_(module.weight)
+
+    def forward(self, input_ids, targets, return_loss):
+        batch_size, seq_len = input_ids.shape 
+
+        # create casual mask 
+        casual_mask = create_casual_mask(seq_len, device=input_ids.device)
+
+
+        # create paddding mask 
+        padding_mask = create_padding_mask(input_ids, pad_idx=self.pad_idx)
+
+        # combine masks (elemner wise and )
+        mask = casual_mask & padding_mask 
+
+        # token embbbedding 
+        x = self.token_embedding(input_ids)
+        
+        # scale embeddings by sqrt(d_model) 
+        x = x * (self.d_model ** 0.5)
+
+        # add positional encoding 
+        x = self.positional_encoding(x)
+
+        # pass through transformer blocks 
+        for block in self.transformer_blocks:
+            x = block(x, mask = mask)
+
+        # final layer norm 
+        x = self.ln_f(x)
+
+        # project to vocabulary 
+        logits = self.lm_head(x)
+
+        # computer loss if targets provided 
+        loss = None
+        if targets is not None and return_loss:
+            # reshaep for cross entropy 
+            loss = F.cross_entropy(
+                logits.view(-1, self.vocab_size),
+                targets.view(-1),
+                ignore_index=self.pad_idx
+            )
+        return {
+            'logits': logits,
+            'loss': loss
+        }
+    
+    @torch.no_grad()
+    def generate(self, input_ids, max_new_tokens=100, temperature = 1.0, top_k= None, eos_token_id = 2):
+        # generate text 
+        # input ids : starting token Ids of shape 
+        # max_new_tokens: max num of tokens to generate 
+        # top_k: keep only k tokens for samplint 
+        # top_p : Nucleus sampling 
+        # eos_token_id : end of sequence tokenid 
+        # returns token ids
+
+
+        self.eval()
+        for _ in range(max_new_tokens):
+            # compherned using gpt so this line is quacky, need to update it 
+            # idk when but,keep it until it works
+            input_ids_crop = input_ids if input_ids.size(1) <= self.max_seq_len else input_ids[:, -self.max_seq_len:]
+
+            # forward pass 
+            outputs = self.forward(input_ids_crop, return_loss=False)
+            logits = outputs['logits']
+
+            # get logits for last positio 
+            logits = logits[:,-1.:] / temperature
+
+            # apply top-k filtering 
+            if top_k is not None:
+                v, _ = torch.topk(logits, min(top_k, logits.size(-1)))
+                logits[logits < v[:, [-1]]] = -float('inf')
+            
+
 
 
 
