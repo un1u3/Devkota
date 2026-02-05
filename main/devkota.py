@@ -1,6 +1,6 @@
 import torch 
 import torch.nn as nn 
-import torch.nn fucntional as F 
+import torch.nn.functional as F 
 from src.core.positionalencoder import PositionalEncoding
 from src.core.multi_head_attention import MultiHeadAttention, create_casual_mask, create_padding_mask
 from transformer import TransformerBlock
@@ -29,7 +29,7 @@ class Devkota(nn.Module):
         self.token_embedding = nn.Embedding(
             num_embeddings = vocab_size,
             embedding_dim = d_model,
-            pad_idx = pad_idx
+            padding_idx = pad_idx
         )
 
         # positional encoding 
@@ -55,16 +55,17 @@ class Devkota(nn.Module):
 
         # langauge model head 
         # projects hidden states to vocab logits 
+        self.lm_head = nn.Linear(d_model, vocab_size, bias=False)
         self.lm_head.weight = self.token_embedding.weight 
 
         # initialize weights 
-        self.appy(self._init_weights)
+        self.apply(self._init_weights)
 
         # special scaled initn f residual projections 
         for name, p in self.named_parameters():
             if name.endswith('W_o.weight') or name.endswith('linear2.weight'):
                 # scale by 1/sqrt*2*num_layers) for residual connections 
-                nn.init.normal_(p, mean=0.0, std=0.2 / (2 8 num_layers)**0.5)
+                nn.init.normal_(p, mean=0.0, std=0.2 / (2 * num_layers)**0.5)
 
     def _init_weights(self, module):
         # initilizing weights using kaiming initialization 
@@ -83,7 +84,7 @@ class Devkota(nn.Module):
             nn.init.zeros_(module.bias)
             nn.init.ones_(module.weight)
 
-    def forward(self, input_ids, targets, return_loss):
+    def forward(self, input_ids, targets=None, return_loss=True):
         batch_size, seq_len = input_ids.shape 
 
         # create casual mask 
@@ -130,7 +131,7 @@ class Devkota(nn.Module):
         }
     
     @torch.no_grad()
-    def generate(self, input_ids, max_new_tokens=100, temperature = 1.0, top_k= None, eos_token_id = 2):
+    def generate(self, input_ids, max_new_tokens=100, temperature = 1.0, top_k= None, top_p=None, eos_token_id = 2):
         # generate text 
         # input ids : starting token Ids of shape 
         # max_new_tokens: max num of tokens to generate 
@@ -147,26 +148,26 @@ class Devkota(nn.Module):
             input_ids_crop = input_ids if input_ids.size(1) <= self.max_seq_len else input_ids[:, -self.max_seq_len:]
 
             # forward pass 
-            outputs = self.forward(input_ids_crop, return_loss=False)
+            outputs = self.forward(input_ids_crop, targets=None, return_loss=False)
             logits = outputs['logits']
 
             # get logits for last positio 
-            logits = logits[:,-1.:] / temperature
+            logits = logits[:, -1, :] / temperature
 
             # apply top-k filtering 
             if top_k is not None:
                 v, _ = torch.topk(logits, min(top_k, logits.size(-1)))
                 logits[logits < v[:, [-1]]] = -float('inf')
 
-                # apply top-p filtering 
-                if top_p is not None:
-                    sorted_logits, sorted_indices = torch.sort(logits, decending = True)
-                    cumlative_probs = torch.cumsum(F.softmax(sorted_logits, dim=-1, dim=-1))
+            # apply top-p filtering 
+            if top_p is not None:
+                sorted_logits, sorted_indices = torch.sort(logits, descending = True)
+                cumlative_probs = torch.cumsum(F.softmax(sorted_logits, dim=-1), dim=-1)
 
-                    # remove tokens with cumulative probablity about the threshold 
-                    sorted_indices_to_remove = cumlative_probs > top_p 
-                    # shift the indices to the right to keep the first token above the threshold 
-                    sorted_indices_to_remove[..., 1:] = sorted_indices_to_remove[..., :-1].clone()
+                # remove tokens with cumulative probablity about the threshold 
+                sorted_indices_to_remove = cumlative_probs > top_p 
+                # shift the indices to the right to keep the first token above the threshold 
+                sorted_indices_to_remove[..., 1:] = sorted_indices_to_remove[..., :-1].clone()
                 sorted_indices_to_remove[..., 0] = 0
                 
                 # Scatter sorted tensors back to original indexing

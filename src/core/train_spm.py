@@ -1,5 +1,8 @@
 # tokenizer trainer 
 
+import sentencepiece as spm
+from pathlib import Path
+
 class TokenizerTrainer:
     # trains a SP tokenizer on your corpus 
     def __init__(self, vocab_size = 16000):
@@ -66,9 +69,9 @@ class NepaliTokenizer:
         
         # load spm model 
         self.sp = spm.SentencePieceProcessor()
-        sucess = self.sp.Load(str(model_path))
+        success = self.sp.Load(str(model_path))
 
-        if not sucess:
+        if not success:
             raise RuntimeError(f"Failed to laod model")
         
         # get special token IDS 
@@ -78,8 +81,9 @@ class NepaliTokenizer:
         self.pad_id = self.sp.pad_id()
 
         print("TOkeinzer loaded")
-        print("Vocab size: {self.vocab_size}")
+        print(f"Vocab size: {self.vocab_size}")
 
+    @property
     def vocab_size(self):
         return self.sp.GetPieceSize()
     

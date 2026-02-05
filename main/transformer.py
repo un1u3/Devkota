@@ -27,7 +27,7 @@ class TransformerBlock(nn.Module):
         self.ln2 = nn.LayerNorm(d_model)
 
         # dropout for residual connection 
-        self.dropout = nn.dropout(p=dropout)
+        self.dropout = nn.Dropout(p=dropout)
 
     def forward(self, x, mask=None):
         # 1 layer Noem  1 

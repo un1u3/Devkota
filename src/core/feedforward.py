@@ -22,7 +22,7 @@ class FeedForward(nn.Module):
 
         # threee linear transformations for SwiGLU 
         self.w1 = nn.Linear(d_model, d_ff, bias=False)
-        self.w2 = nn.Linear(d_model, d_model, bias=False)
+        self.w2 = nn.Linear(d_ff, d_model, bias=False)
         self.w3 = nn.Linear(d_model, d_ff, bias=False)
 
         self.dropout = nn.Dropout(p = dropout)
@@ -34,7 +34,7 @@ class FeedForward(nn.Module):
         x = self.dropout(x)
 
         # project back to d_model
-        x = self.ww2(x)
+        x = self.w2(x)
         x = self.dropout(x)
         return x 
 

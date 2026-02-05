@@ -12,7 +12,7 @@ class MultiHeadAttention(nn.Module):
         
         self.d_model = d_model
         self.num_heads = num_heads
-        self.d_k = d_model
+        self.d_k = d_model // num_heads
 
         #  linear projection for Q, K, V 
         # we use single linear layer, then split into heads 
@@ -44,6 +44,7 @@ class MultiHeadAttention(nn.Module):
 
         # idk what contiguous does fk it 
         x = x.transpose(1,2).contiguous()
+        return x.view(batch_size, seq_len, self.num_heads * d_k)
 
     def scaled_dot_prod_attn(self, Q, K, V, mask = None):
         # attn score 
@@ -62,7 +63,7 @@ class MultiHeadAttention(nn.Module):
         return output, attn_weights
     
 
-    def forward(self, query, key, value, mask):
+    def forward(self, query, key, value, mask=None):
         batch_size = query.size(0)
         # Linear projection 
         Q = self.W_q(query) # (batch_size, seq_len_q, d_model)

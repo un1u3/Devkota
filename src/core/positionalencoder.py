@@ -12,7 +12,7 @@ class PositionalEncoding(nn.Module):
     def __init__(self, d_model, max_seq_len = 512, dropout= 0.1):
         super().__init__()
         self.d_model = d_model
-        self.dropout = dropout
+        self.dropout = nn.Dropout(p=dropout)
 
         # create positional encoding matrix 
         # shape (max_seqlenn, d_model)
@@ -34,7 +34,7 @@ class PositionalEncoding(nn.Module):
         # apply sin to even indices 0,2,4
         pe[:,0::2] = torch.sin(position * div_term)
         # cos to odd
-        pe[:,1::3] = torch.sin(position * div_term)
+        pe[:,1::2] = torch.cos(position * div_term)
         # add batch dim (1,max_seqlen, dmodel)
         pe = pe.unsqueeze(0)
 
