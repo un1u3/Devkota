@@ -157,6 +157,52 @@ class Devkota(nn.Module):
             if top_k is not None:
                 v, _ = torch.topk(logits, min(top_k, logits.size(-1)))
                 logits[logits < v[:, [-1]]] = -float('inf')
+
+                # apply top-p filtering 
+                if top_p is not None:
+                    sorted_logits, sorted_indices = torch.sort(logits, decending = True)
+                    cumlative_probs = torch.cumsum(F.softmax(sorted_logits, dim=-1, dim=-1))
+
+                    # remove tokens with cumulative probablity about the threshold 
+                    sorted_indices_to_remove = cumlative_probs > top_p 
+                    # shift the indices to the right to keep the first token above the threshold 
+                    sorted_indices_to_remove[..., 1:] = sorted_indices_to_remove[..., :-1].clone()
+                sorted_indices_to_remove[..., 0] = 0
+                
+                # Scatter sorted tensors back to original indexing
+                indices_to_remove = sorted_indices_to_remove.scatter(1, sorted_indices, sorted_indices_to_remove)
+                logits[indices_to_remove] = -float('inf')
+            
+            # Sample from the distribution
+            probs = F.softmax(logits, dim=-1)
+            next_token = torch.multinomial(probs, num_samples=1)
+            
+            # Append to sequence
+            input_ids = torch.cat([input_ids, next_token], dim=1)
+            
+            # Stop if EOS token generated for all sequences
+            if (next_token == eos_token_id).all():
+                break
+        
+        return input_ids
+    
+    def count_parameters(self):
+        # useed gpt to make code concise 
+        # will remoove this if it wont work 
+        total = sum(p.numel() for p in self.parameters())
+        trainable = sum(p.numel() for p in self.parameters() if p.requires_grad)
+        
+        # Breakdown by component
+        embedding_params = sum(p.numel() for p in self.token_embedding.parameters())
+        transformer_params = sum(p.numel() for p in self.transformer_blocks.parameters())
+        
+        return {
+            'total': total,
+            'trainable': trainable,
+            'non_trainable': total - trainable,
+            'embedding': embedding_params,
+            'transformer_blocks': transformer_params,
+        }
             
 
 
