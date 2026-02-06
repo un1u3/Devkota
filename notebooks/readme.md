@@ -1,2 +1,2 @@
 This is the sandbox to code and other directory are the .py files 
-I test here and paste there 
+I build  here and paste in src to use as module::))
