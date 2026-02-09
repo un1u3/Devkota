@@ -31,23 +31,23 @@ class LRScheduler:
         return lr 
      
     # resource ko kami+ model deviate nahos
-    def save_checkpoint(path, model, optimizer, step, epoch, loss):
-        torch.save(({
-            'step':step,
-            'epoch':epoch,
-            'model': model.state_dict(),
-            'optimizer':optimizer.state_dict(),
-            'loss':loss
-        }),path)
+def save_checkpoint(path, model, optimizer, step, epoch, loss):
+    torch.save(({
+        'step':step,
+        'epoch':epoch,
+        'model': model.state_dict(),
+        'optimizer':optimizer.state_dict(),
+        'loss':loss
+    }),path)
 
-    def load_checkpoint(path, model, optimizer=None):
-        checkpoint = torch.load(path, map_location='cpu')
-        model.load_state_dict(checkpoint['model'])
-        if optimizer and 'optimizer' in checkpoint:
-            optimizer.load_state_dict(checkpoint['optimizer'])
-        return checkpoint
+def load_checkpoint(path, model, optimizer=None):
+    checkpoint = torch.load(path, map_location='cpu')
+    model.load_state_dict(checkpoint['model'])
+    if optimizer and 'optimizer' in checkpoint:
+        optimizer.load_state_dict(checkpoint['optimizer'])
+    return checkpoint
 
 # this need some work
-    def compute_preplx(loss):
-        return math.exp(loss)
+def compute_preplx(loss):
+    return math.exp(loss)
     
