@@ -40,5 +40,109 @@ class Trainer:
         # ensure checkpoint directory exists before training starts 
         Path(config.checkpoint_dir).mkdir(parents=True, exist_ok=True)
 
+    def train_epoch(self):
+        # enable dropout
+        self.model.train()
+
+        total_loss = 0 
+        # gradients accumulate across multiple forward passes
+        self.optimizer.zero_grad()
+
+        for i, batch in enumerate(self.train_loader):
+            input_ids = batch['input_ids'].to(self.device)
+            labels = batch['labels'].to(self.device)
+
+            # mixed precision forward pass for speed and memory eff
+            with autocast():
+                outputs = self.model(input_ids, targets=labels)
+                # dividing loss so accumulated gradientns math full-batch 
+
+                loss = outputs['loss'] / self.config.accumulation_steps
+            
+            # backprop with scaled loss to preserve precision 
+            self.scaler.scaler(loss).backward()
+
+            if (i + 1)% self.config.accumulation_steps == 0:
+                # unsclae before clipping so norms are meaningful 
+                self.scaler.unscale_(self.optimizer)
+                torch.nn.utils.clip_grad_norm_(
+                    self.model.parameters(),
+                    self.config.max_grad_norm
+                )
+
+                # optimizer step under GradScaler control
+                self.scaler.step(self.optimizer)
+                self.scaler.update()
+                self.optimizer.zero_grad()
+                
+                # advance lr schedule once per optimizer update
+                lr = self.scheduler.step()
+                self.step += 1
+
+
+                # lightweight training signal for miniitoring 
+                if self.step % 10 == 0:
+                    print(f"Step {self.step} | "f"Loss: {loss.item() * self.config.accumulation_steps:.4f} | "f"LR: {lr:.6f}")
+                
+                # predioc validation and best-model track
+                if self.step % self.config.eval_every == 0:
+                    val_loss = self.validate()
+                    
+                    if val_loss < self.best_val_loss:
+                        self.best_val_loss = val_loss
+                        save_checkpoint(
+                            f"{self.config.checkpoint_dir}/mode.pt"
+                            self.model,
+                            self.optimizer,
+                            self.step,
+                            self.epoch,
+                            val_loss
+                        )
+                        print(f"saved best model ( val_loss : {val_loss:.4f})")
+
+                if self.step % self.config.save_every == 0:
+                    save_checkpoint(
+                        f"{self.config.checkpoint_dir}/checkpoint_{self.step}.pt",
+                        self.model,
+                        self.optimizer,
+                        self.step,
+                        self.epoch,
+                        loss.item()
+                    )
+
+                total_loss += loss.item()
+
+                # avg loss
+                return total_loss / len(self.train_loader)
+            
+            @torch.no_grad()
+            # disable dropout and gradient tracking 
+            self.model.eval()
+            total_loss = 0 
+
+            for batch in self.val_loader:
+                input_ids = batch['input_ids'].to(self.device)
+                labels = batch['labels'].to(self.device)
+
+                outputs = self.model(input_ids, targets = labels)
+                total_loss += outputs['loss'].item()
+
+            # mean validataion loss across batches 
+            avg_loss = total_loss / len(self.val_loader)
+
+
+            # preplexity is exp(cross-entropy)
+            ppl = compute_preplx(avg_loss)
+            print(f"Validation ---"f"Loss: {avg_loss:.4f} --- "f"Perplexity: {ppl:.2f}")
+
+            # return model to train mode for next epoch 
+            self.model.train()
+            return avg_loss 
+        
+    # def train(self):
+
+            
+
+
     
         
