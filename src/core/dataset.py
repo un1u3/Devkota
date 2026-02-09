@@ -41,3 +41,12 @@ class TextDataset(Dataset):
             'input_ids': torch.tensor(input_ids, dtype=torch.long),
             'labels': torch.tensor(labels, dtype=torch.long)
         }
+    
+def get_dataloaders(train_path, val_path, tokenizer, batch_size=8, max_len=512):
+    train_dataset = TextDataset(train_path, tokenizer, max_len)
+    val_dataset = TextDataset(val_path, tokenizer, max_len)
+    
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
+    
+    return train_loader, val_loader
