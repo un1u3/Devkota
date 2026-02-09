@@ -167,7 +167,46 @@ class FineTuner(Trainer):
         # counts consecutive epochs without validation improvement
         self.patience_counter = 0
 
-    
+    def train(self):
+        # optional: initialize from a pretrained checkpoint
+        if hasattr(self.config, 'pretrained'):
+            print(f"Loading pretrained model from {self.config.pretrained}")
+            checkpoint = load_checkpoint(self.config.pretrained, self.model)
+            print("Loaded pretrained model")
 
+        print(f"Fine-tuning on {self.device}")
+
+        for epoch in range(self.config.epochs):
+            self.epoch = epoch
+            print(f"\nEpoch {epoch + 1}/{self.config.epochs}")
+
+            epoch_loss = self.train_epoch()
+            val_loss = self.validate()
+
+            # early stopping logic to prevent overfitting
+            if val_loss < self.best_val_loss:
+                self.best_val_loss = val_loss
+                self.patience_counter = 0
+            else:
+                self.patience_counter += 1
+                print(
+                    f"NO.....IMprovvve "
+                    f"({self.patience_counter}/{self.config.patience})"
+                )
+
+                if self.patience_counter >= self.config.patience:
+                    print("Early stopping")
+                    break
+
+        save_checkpoint(
+            self.config.output,
+            self.model,
+            self.optimizer,
+            self.step,
+            self.epoch,
+            self.best_val_loss
+        )
+        print("\n fine-tuning complete!")
+        print(f" model saved to {self.config.output}")
     
         
