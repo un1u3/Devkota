@@ -159,8 +159,15 @@ class Trainer:
         print(f"best val loss: {self.best_val_loss:.4f}")
         print(f"final val loss: {final_val_loss:.4f}")
 
-            
 
+class FineTuner(Trainer):
+    
+    def __init__(self, model, train_loader, val_loader, config , device = 'cuda'):
+        super().__init__(model, train_loader, val_loader, config, device)
+        # counts consecutive epochs without validation improvement
+        self.patience_counter = 0
+
+    
 
     
         
