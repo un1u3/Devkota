@@ -139,7 +139,25 @@ class Trainer:
             self.model.train()
             return avg_loss 
         
-    # def train(self):
+    def train(self):
+        print(f"Training on {self.device}")
+        print(f"Total steps: {self.scheduler.total_steps}")
+
+        for epoch in range(self.config.epochs):
+            self.epoch = epoch
+            print(f"\n epoch {epoch + 1}/{self.config.epochs}")
+
+            epoch_loss = self.train_epoch()
+            print(
+                f"epoch {epoch + 1} complete --- "
+                f"avg loss: {epoch_loss:.4f}"
+            )
+
+        # Final evaluation after all epochs complete
+        final_val_loss = self.validate()
+        print("\nTraining complete!")
+        print(f"best val loss: {self.best_val_loss:.4f}")
+        print(f"final val loss: {final_val_loss:.4f}")
 
             
 
