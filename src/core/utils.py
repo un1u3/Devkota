@@ -26,19 +26,19 @@ class LRScheduler:
     def step(self):
         self.step_count +=1
         lr = self.get_lr()
-        for parm_group in self.optimizer.parm_gropus:
-            parm_group['lr'] = lr 
+        for param_group in self.optimizer.param_groups:
+            param_group['lr'] = lr 
         return lr 
      
     # resource ko kami+ model deviate nahos
 def save_checkpoint(path, model, optimizer, step, epoch, loss):
-    torch.save(({
+    torch.save({
         'step':step,
         'epoch':epoch,
         'model': model.state_dict(),
         'optimizer':optimizer.state_dict(),
         'loss':loss
-    }),path)
+    }, path)
 
 def load_checkpoint(path, model, optimizer=None):
     checkpoint = torch.load(path, map_location='cpu')

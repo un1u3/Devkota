@@ -1,12 +1,12 @@
 import torch 
 import torch.nn as nn 
-from torch.cuda.amp import autocase, GradScaler
+from torch.cuda.amp import autocast, GradScaler
 import time 
 from pathlib import Path 
 from utils import LRScheduler, save_checkpoint, load_checkpoint, compute_preplx
 
 class Trainer:
-    def __init__(self, model, train_loader, val_loader config, device='cuda'):
+    def __init__(self, model, train_loader, val_loader, config, device='cuda'):
         self.model = model.to(device)
         self.train_loader = train_loader
         self.val_loader = val_loader
@@ -45,6 +45,7 @@ class Trainer:
         self.model.train()
 
         total_loss = 0 
+        num_steps = 0
         # gradients accumulate across multiple forward passes
         self.optimizer.zero_grad()
 
@@ -60,9 +61,9 @@ class Trainer:
                 loss = outputs['loss'] / self.config.accumulation_steps
             
             # backprop with scaled loss to preserve precision 
-            self.scaler.scaler(loss).backward()
+            self.scaler.scale(loss).backward()
 
-            if (i + 1)% self.config.accumulation_steps == 0:
+            if (i + 1) % self.config.accumulation_steps == 0:
                 # unsclae before clipping so norms are meaningful 
                 self.scaler.unscale_(self.optimizer)
                 torch.nn.utils.clip_grad_norm_(
@@ -78,7 +79,10 @@ class Trainer:
                 # advance lr schedule once per optimizer update
                 lr = self.scheduler.step()
                 self.step += 1
+                num_steps += 1
 
+                # accumulate loss for this optimizer step
+                total_loss += loss.item() * self.config.accumulation_steps
 
                 # lightweight training signal for miniitoring 
                 if self.step % 10 == 0:
@@ -91,7 +95,7 @@ class Trainer:
                     if val_loss < self.best_val_loss:
                         self.best_val_loss = val_loss
                         save_checkpoint(
-                            f"{self.config.checkpoint_dir}/mode.pt"
+                            f"{self.config.checkpoint_dir}/best_model.pt",
                             self.model,
                             self.optimizer,
                             self.step,
@@ -107,37 +111,36 @@ class Trainer:
                         self.optimizer,
                         self.step,
                         self.epoch,
-                        loss.item()
+                        loss.item() * self.config.accumulation_steps
                     )
 
-                total_loss += loss.item()
+        # avg loss
+        return total_loss / num_steps if num_steps > 0 else 0
+    
+    @torch.no_grad()
+    def validate(self):
+        # disable dropout and gradient tracking 
+        self.model.eval()
+        total_loss = 0 
 
-                # avg loss
-                return total_loss / len(self.train_loader)
-            
-            @torch.no_grad()
-            # disable dropout and gradient tracking 
-            self.model.eval()
-            total_loss = 0 
+        for batch in self.val_loader:
+            input_ids = batch['input_ids'].to(self.device)
+            labels = batch['labels'].to(self.device)
 
-            for batch in self.val_loader:
-                input_ids = batch['input_ids'].to(self.device)
-                labels = batch['labels'].to(self.device)
+            outputs = self.model(input_ids, targets = labels)
+            total_loss += outputs['loss'].item()
 
-                outputs = self.model(input_ids, targets = labels)
-                total_loss += outputs['loss'].item()
-
-            # mean validataion loss across batches 
-            avg_loss = total_loss / len(self.val_loader)
+        # mean validataion loss across batches 
+        avg_loss = total_loss / len(self.val_loader)
 
 
-            # preplexity is exp(cross-entropy)
-            ppl = compute_preplx(avg_loss)
-            print(f"Validation ---"f"Loss: {avg_loss:.4f} --- "f"Perplexity: {ppl:.2f}")
+        # preplexity is exp(cross-entropy)
+        ppl = compute_preplx(avg_loss)
+        print(f"Validation ---"f"Loss: {avg_loss:.4f} --- "f"Perplexity: {ppl:.2f}")
 
-            # return model to train mode for next epoch 
-            self.model.train()
-            return avg_loss 
+        # return model to train mode for next epoch 
+        self.model.train()
+        return avg_loss 
         
     def train(self):
         print(f"Training on {self.device}")

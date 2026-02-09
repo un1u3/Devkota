@@ -1,59 +1,48 @@
-# Training Configuration
-
 class ModelConfig:
-    vocab_size = 16000
-    d_model = 512
-    num_layers = 12
-    num_heads = 8
-    d_ff = 2048
-    max_seq_len = 512
+    # 8GB RAM Optimized Config
+    vocab_size = 16000     
+    d_model = 256          # Reduced from 512
+    num_layers = 6         # Reduced from 12
+    num_heads = 4          # Reduced from 8
+    d_ff = 1024            # Reduced from 2048
+    max_seq_len = 128      # Reduced from 512 for faster training
     dropout = 0.1
     pad_idx = 3
 
-
 class PreTrainConfig:
-    # Data
-    train_data = "preprocessed_data/train.txt"
-    val_data = "preprocessed_data/val.txt"
+    # Use smaller subset data
+    train_data = "preprocessed_data/train_small.txt"
+    val_data = "preprocessed_data/val_small.txt"
     
-    # Training
-    batch_size = 8
-    accumulation_steps = 4
-    epochs = 10
+    batch_size = 4         # Small batch size for 8GB RAM
+    accumulation_steps = 8  # Increased to maintain effective batch size
+    epochs = 5
     
-    # Optimizer
     lr = 3e-4
     weight_decay = 0.01
-    warmup_steps = 2000
+    warmup_steps = 1000
     max_grad_norm = 1.0
     
-    # Checkpoint
     checkpoint_dir = "checkpoints"
-    save_every = 1000
-    eval_every = 500
-
+    save_every = 500
+    eval_every = 200
 
 class FineTuneConfig:
-    # Data
+    # Same changes here
     train_data = "preprocessed_data/devkota_train.txt"
     val_data = "preprocessed_data/devkota_val.txt"
     pretrained = "checkpoints/best_model.pt"
     
-    # Training
-    batch_size = 4
-    accumulation_steps = 2
-    epochs = 20
+    batch_size = 2
+    accumulation_steps = 4
+    epochs = 10
     
-    # Optimizer
     lr = 1e-5
     weight_decay = 0.01
     warmup_steps = 100
     max_grad_norm = 1.0
     
-    # Early stopping
     patience = 3
-    
-    # Checkpoint
     checkpoint_dir = "checkpoints/finetuned"
     save_every = 200
     eval_every = 100

@@ -42,7 +42,7 @@ class TokenizerTrainer:
             # performance (specially for large data)
             shuffle_input_sentence=True,
             input_sentence_size=2000000,
-            train_extremely_large_corpus=False,  
+            train_extremely_large_corpus=True,  
 
         )
 
