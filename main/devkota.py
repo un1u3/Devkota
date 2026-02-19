@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F 
 from src.core.positionalencoder import PositionalEncoding
 from src.core.multi_head_attention import MultiHeadAttention, create_casual_mask, create_padding_mask
-from transformer import TransformerBlock
+from main.transformer import TransformerBlock
 
 
 class Devkota(nn.Module):
@@ -131,7 +131,7 @@ class Devkota(nn.Module):
         }
     
     @torch.no_grad()
-    def generate(self, input_ids, max_new_tokens=100, temperature = 1.0, top_k= None, top_p=None, eos_token_id = 2):
+    def generate(self, input_ids, max_new_tokens=100, temperature = 1.0, top_k= None, top_p=None, eos_token_id = 2, repetition_penalty=1.0):
         # generate text 
         # input ids : starting token Ids of shape 
         # max_new_tokens: max num of tokens to generate 
@@ -153,6 +153,12 @@ class Devkota(nn.Module):
 
             # get logits for last positio 
             logits = logits[:, -1, :] / temperature
+
+            # simple repetition penalty to reduce verbatim loops
+            if repetition_penalty != 1.0:
+                for b in range(logits.size(0)):
+                    seen = input_ids[b].unique()
+                    logits[b, seen] = logits[b, seen] / repetition_penalty
 
             # apply top-k filtering 
             if top_k is not None:

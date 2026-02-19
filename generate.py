@@ -5,7 +5,7 @@ from src.core.train_spm import NepaliTokenizer
 from src.core.utils import load_checkpoint
 import os
 
-def generate_text(prompt, model, tokenizer, max_tokens=100, temperature=0.8):
+def generate_text(prompt, model, tokenizer, max_tokens=80, temperature=0.7, top_k=40, top_p=0.85, repetition_penalty=1.1):
     # wrapper for generation 
     
     # encode prompt 
@@ -21,13 +21,27 @@ def generate_text(prompt, model, tokenizer, max_tokens=100, temperature=0.8):
         input_ids=input_ids,
         max_new_tokens=max_tokens,
         temperature=temperature,
-        top_k=50,
-        top_p=0.9
+        top_k=top_k,
+        top_p=top_p,
+        repetition_penalty=repetition_penalty
     )
     
     # decode back to text
-    generated_text = tokenizer.decode(output_ids[0].tolist())
+    full = output_ids[0]
+    new_tokens = full[input_ids.size(1):]  # decode only what was generated
+    if len(new_tokens) == 0:
+        new_tokens = full
+    generated_text = tokenizer.decode(new_tokens.tolist())
     return generated_text
+
+def build_poem_prompt(theme_or_prompt):
+    # tiny helper to wrap a theme into a poem ask
+    text = theme_or_prompt.strip()
+    if len(text) == 0:
+        return "कविता लेख्नुहोस्:"
+    if " " not in text and len(text) < 20:
+        return f"विषय: {text}\nकविता:"
+    return text
 
 def main():
     # config setup
@@ -47,7 +61,8 @@ def main():
     
     # loading checkpoint 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    checkpoint_path = "checkpoints/best_model.pt"
+    ft_path = "checkpoints/finetuned/devkota_poet.pt"
+    checkpoint_path = ft_path if os.path.exists(ft_path) else "checkpoints/best_model.pt"
     
     if os.path.exists(checkpoint_path):
         print(f"loading from {checkpoint_path}")
@@ -68,21 +83,25 @@ def main():
 
     tokenizer = NepaliTokenizer(tokenizer_path)
     
-    print("Devkota Generator")
+    print("Devkota POeLM Generator")
     print("type 'quit' to exit")
     
     while True:
         try:
-            prompt = input("Enter prompt: ")
+            prompt = input("Enter poem theme or prompt: ")
             if prompt.strip() == 'quit':
                 break
             
             print("generating...")
+            poem_prompt = build_poem_prompt(prompt)
             generated = generate_text(
-                prompt=prompt,
+                prompt=poem_prompt,
                 model=model,
                 tokenizer=tokenizer,
-                max_tokens=100
+                max_tokens=80,
+                temperature=0.7,
+                top_k=40,
+                top_p=0.85
             )
             
             print(f"\nResult: {generated}\n")

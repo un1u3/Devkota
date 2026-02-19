@@ -1,9 +1,10 @@
 import torch 
 import torch.nn as nn 
 from torch.cuda.amp import autocast, GradScaler
+from contextlib import nullcontext
 import time 
 from pathlib import Path 
-from utils import LRScheduler, save_checkpoint, load_checkpoint, compute_preplx
+from src.core.utils import LRScheduler, save_checkpoint, load_checkpoint, compute_preplx
 
 class Trainer:
     def __init__(self, model, train_loader, val_loader, config, device='cuda'):
@@ -27,8 +28,8 @@ class Trainer:
             total_steps=total_steps
         )
 
-        # GrandScaler dynamically resccales loss to prevent underflwo 
-        self.scaler = GradScaler()
+        # GradScaler for mixed precision (only enabled on cuda)
+        self.scaler = GradScaler(enabled=(device == 'cuda'))
         
         # global optimization step counter 
         self.step = 0
@@ -53,8 +54,9 @@ class Trainer:
             input_ids = batch['input_ids'].to(self.device)
             labels = batch['labels'].to(self.device)
 
-            # mixed precision forward pass for speed and memory eff
-            with autocast():
+            # mixed precision on cuda, plain context on cpu
+            amp_ctx = autocast if self.device == 'cuda' else nullcontext
+            with amp_ctx():
                 outputs = self.model(input_ids, targets=labels)
                 # dividing loss so accumulated gradientns math full-batch 
 

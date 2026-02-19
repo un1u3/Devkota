@@ -1,2 +1,22 @@
 .venv
+env/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.DS_Store
+.ipynb_checkpoints/
+
+# data and artifacts
 data/
+preprocessed_data/
+checkpoints/
+models/
+tokenizer/
+
+# logs and outputs
+*.log
+*.out
+*.pt
+*.model
+*.vocab

@@ -84,12 +84,9 @@ class MultiHeadAttention(nn.Module):
         return output
     
 def create_casual_mask(seq_len, device):
-    # Create a casual (lower traingular) mask for autoreg gen
-    # ovi lower traingular matrix 
-    # this prevnets position from attending futrure pred 
-    mask = torch.tril(torch.ones(seq_len, seq_len, device=device))
-    mask = mask.unsqueeze(0).unsqueeze(0)
-    return mask 
+    # Create a casual (lower triangular) boolean mask for autoregressive gen
+    mask = torch.tril(torch.ones(seq_len, seq_len, device=device, dtype=torch.bool))
+    return mask.unsqueeze(0).unsqueeze(0)
     
 
 def create_padding_mask(seq, pad_idx= 3):
@@ -100,4 +97,3 @@ def create_padding_mask(seq, pad_idx= 3):
 
     
         
-
